@@ -50,6 +50,8 @@ def calculate_stability_score(risk_factors):
 
 def diversification_score(earnings):
     total_income = sum(earnings.values())
+    if total_income == 0:
+        return {career: 0 for career in earnings}  # Avoid division by zero
     return {career: (income / total_income) * 100 for career, income in earnings.items()}
 
 
