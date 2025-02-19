@@ -7,13 +7,18 @@ import seaborn as sns
 # Title
 st.title("Career & Wealth Navigation Tool")
 
-# Sidebar inputs for user details
-st.sidebar.header("User Inputs")
-career_options = ["Finance Executive", "Manufacturing Entrepreneur", "Consulting", "Board Membership", "Lecturing"]
-selected_careers = st.sidebar.multiselect("Select Career Mix", career_options)
+# Step 1: Career Goals
+st.header("Step 1: Define Your Career Goals")
+career_goals = st.multiselect("Select Your Career Goals", ["High Earnings", "Work-Life Balance", "Career Growth", "Low Risk", "Flexibility", "Scalability"])
+st.write("Your selected goals will influence career suggestions and risk analysis.")
 
-# Customizable Weights for Decision Factors
-st.sidebar.subheader("Customize Career Weights")
+# Step 2: Career Selection
+st.header("Step 2: Select & Customize Your Career Mix")
+career_options = ["Finance Executive", "Manufacturing Entrepreneur", "Consulting", "Board Membership", "Lecturing"]
+selected_careers = st.multiselect("Select Careers", career_options)
+
+st.sidebar.header("Career Weights & Risk Factors")
+
 factor_weights = {
     "Earnings Potential": st.sidebar.slider("Earnings Potential", 1, 10, 5),
     "Flexibility": st.sidebar.slider("Flexibility", 1, 10, 5),
@@ -25,33 +30,10 @@ factor_weights = {
 earnings = {}
 risk_factors = {}
 for career in selected_careers:
-    earnings[career] = st.sidebar.number_input(f"Expected Annual Earnings ($) - {career}", min_value=0, step=1000)
-    risk_factors[career] = st.sidebar.slider(f"Risk Level (1-10) - {career}", min_value=1, max_value=10, value=5)
+    earnings[career] = st.number_input(f"Expected Annual Earnings ($) - {career}", min_value=0, step=1000)
+    risk_factors[career] = st.slider(f"Risk Level (1-10) - {career}", min_value=1, max_value=10, value=5)
 
-# Monte Carlo Simulation - Earnings Projection
-def monte_carlo_simulation(earnings, risk_factors, simulations=1000, years=10):
-    results = {}
-    for career, base_earning in earnings.items():
-        growth_rate = np.random.normal(0.05, 0.02, simulations)  # 5% avg growth with 2% std dev
-        risk_adjustment = 1 - (risk_factors[career] / 10)  # Adjust growth based on risk level
-        projections = base_earning * np.cumprod(1 + (growth_rate * risk_adjustment))
-        results[career] = projections
-    return results
-
-if st.sidebar.button("Run Projection"):
-    projections = monte_carlo_simulation(earnings, risk_factors)
-    st.subheader("Projected Earnings Over 10 Years")
-    
-    for career, values in projections.items():
-        st.write(f"{career}: Median Earnings after 10 years: ${np.median(values):,.2f}")
-        fig, ax = plt.subplots()
-        ax.hist(values, bins=30, alpha=0.7)
-        ax.set_title(f"Monte Carlo Simulation - {career}")
-        ax.set_xlabel("Earnings ($)")
-        ax.set_ylabel("Frequency")
-        st.pyplot(fig)
-
-# Feature Engineering - Career Stability & Diversification Score
+# Step 3: Career Risk & Stability Analysis
 def calculate_stability_score(risk_factors):
     return {career: 10 - risk for career, risk in risk_factors.items()}
 
@@ -60,10 +42,9 @@ def diversification_score(earnings):
     return {career: (income / total_income) * 100 for career, income in earnings.items()}
 
 if len(earnings) > 1:
+    st.header("Step 3: Career Risk & Stability Analysis")
     stability_scores = calculate_stability_score(risk_factors)
     diversification_scores = diversification_score(earnings)
-    
-    st.subheader("Career Stability & Diversification Scores")
     stability_df = pd.DataFrame({
         "Career": stability_scores.keys(),
         "Stability Score": stability_scores.values(),
@@ -71,25 +52,7 @@ if len(earnings) > 1:
     })
     st.dataframe(stability_df)
 
-# Pairwise Comparison Matrix with Adjusted Weights
-def pairwise_comparison(earnings, factor_weights):
-    careers = list(earnings.keys())
-    matrix = pd.DataFrame(index=careers, columns=careers)
-    for i in range(len(careers)):
-        for j in range(len(careers)):
-            if i == j:
-                matrix.iloc[i, j] = "-"
-            else:
-                weight_factor = sum(factor_weights.values()) / len(factor_weights)  # Normalize weights
-                matrix.iloc[i, j] = f"{(earnings[careers[i]] / max(1, earnings[careers[j]])) * weight_factor:.2f}x"
-    return matrix
-
-if len(earnings) > 1:
-    st.subheader("Pairwise Career Comparison with Weights")
-    comparison_matrix = pairwise_comparison(earnings, factor_weights)
-    st.dataframe(comparison_matrix)
-
-# Suggested Career Pivots Algorithm
+# Step 4: Career Pivot & Decision Support
 def suggest_career_pivots(earnings, risk_factors, factor_weights):
     suggestions = []
     for career in earnings.keys():
@@ -102,12 +65,12 @@ def suggest_career_pivots(earnings, risk_factors, factor_weights):
     return suggestions
 
 if len(earnings) > 1:
-    st.subheader("Suggested Career Pivots")
+    st.header("Step 4: Suggested Career Pivots")
     pivots = suggest_career_pivots(earnings, risk_factors, factor_weights)
     for pivot in pivots:
         st.write("- ", pivot)
 
-# Visualization: Radar Chart for Career Factors
+# Improved Radar Chart for Career Factors
 def radar_chart(factor_weights):
     labels = list(factor_weights.keys())
     values = list(factor_weights.values())
@@ -123,8 +86,7 @@ def radar_chart(factor_weights):
     ax.set_yticklabels([])
     st.pyplot(fig)
 
-st.subheader("Career Factor Radar Chart")
+st.header("Career Factor Radar Chart")
 radar_chart(factor_weights)
 
 st.write("This visualization helps you understand the weight distribution of key decision factors in your career choices.")
-
