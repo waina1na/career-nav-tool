@@ -3,22 +3,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import networkx as nx
 
 # Title
 st.title("Career & Wealth Navigation Tool")
 
-# Step 1: Career Goals
-st.header("Step 1: Define Your Career Goals")
-career_goals = st.multiselect("Select Your Career Goals", ["High Earnings", "Work-Life Balance", "Career Growth", "Low Risk", "Flexibility", "Scalability"])
-st.write("Your selected goals will influence career suggestions and risk analysis.")
-
-# Step 2: Career Selection
-st.header("Step 2: Select & Customize Your Career Mix")
+# Sidebar inputs for user details
+st.sidebar.header("User Inputs")
 career_options = ["Finance Executive", "Manufacturing Entrepreneur", "Consulting", "Board Membership", "Lecturing"]
-selected_careers = st.multiselect("Select Careers", career_options)
+selected_careers = st.sidebar.multiselect("Select Career Mix", career_options)
 
-st.sidebar.header("Career Weights & Risk Factors")
-
+# Customizable Weights for Decision Factors
+st.sidebar.subheader("Customize Career Weights")
 factor_weights = {
     "Earnings Potential": st.sidebar.slider("Earnings Potential", 1, 10, 5),
     "Flexibility": st.sidebar.slider("Flexibility", 1, 10, 5),
@@ -27,66 +23,63 @@ factor_weights = {
     "Moat Strength": st.sidebar.slider("Moat Strength", 1, 10, 5)
 }
 
-earnings = {}
-risk_factors = {}
-for career in selected_careers:
-    earnings[career] = st.number_input(f"Expected Annual Earnings ($) - {career}", min_value=0, step=1000)
-    risk_factors[career] = st.slider(f"Risk Level (1-10) - {career}", min_value=1, max_value=10, value=5)
-
-# Step 3: Career Risk & Stability Analysis
-def calculate_stability_score(risk_factors):
-    return {career: 10 - risk for career, risk in risk_factors.items()}
-
-def diversification_score(earnings):
-    total_income = sum(earnings.values()) if sum(earnings.values()) > 0 else 1  # Avoid division by zero
-    return {career: (income / total_income) * 100 for career, income in earnings.items()}
-
-if len(earnings) > 1:
-    st.header("Step 3: Career Risk & Stability Analysis")
-    stability_scores = calculate_stability_score(risk_factors)
-    diversification_scores = diversification_score(earnings)
-    stability_df = pd.DataFrame({
-        "Career": stability_scores.keys(),
-        "Stability Score": stability_scores.values(),
-        "Diversification Score (%)": diversification_scores.values()
-    })
-    st.dataframe(stability_df)
-
-# Step 4: Career Pivot & Decision Support
-def suggest_career_pivots(earnings, risk_factors, factor_weights):
-    suggestions = []
-    for career in earnings.keys():
-        if risk_factors[career] > 7:
-            suggestions.append(f"Consider shifting from {career} to a lower-risk option with similar skill overlap.")
-        if factor_weights["Flexibility"] > 7 and career in ["Finance Executive", "Manufacturing Entrepreneur"]:
-            suggestions.append(f"{career} has lower flexibility; consider adding Consulting or Lecturing.")
-        if factor_weights["Scalability"] > 7 and career not in ["Entrepreneur", "Consulting"]:
-            suggestions.append(f"{career} has limited scalability; consider adding an entrepreneurial path.")
-    return suggestions
-
-if len(earnings) > 1:
-    st.header("Step 4: Suggested Career Pivots")
-    pivots = suggest_career_pivots(earnings, risk_factors, factor_weights)
-    for pivot in pivots:
-        st.write("- ", pivot)
-
-# Improved Radar Chart for Career Factors
-def radar_chart(factor_weights):
-    labels = list(factor_weights.keys())
-    values = list(factor_weights.values())
-    values += values[:1]  # Close the circle
-    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
-    angles += angles[:1]
+# Career Pivot Flowchart
+def career_pivot_flowchart(careers):
+    G = nx.DiGraph()
+    for career in careers:
+        if career == "Finance Executive":
+            G.add_edge(career, "Board Membership")
+            G.add_edge(career, "Consulting")
+        elif career == "Manufacturing Entrepreneur":
+            G.add_edge(career, "Board Membership")
+            G.add_edge(career, "Consulting")
+        elif career == "Consulting":
+            G.add_edge(career, "Lecturing")
     
-    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-    ax.fill(angles, values, color='blue', alpha=0.3)
-    ax.plot(angles, values, color='blue', linewidth=2)
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels)
-    ax.set_yticklabels([])
-    st.pyplot(fig)
+    plt.figure(figsize=(8, 6))
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=3000, font_size=10)
+    st.pyplot(plt)
 
-st.header("Career Factor Radar Chart")
-radar_chart(factor_weights)
+if len(selected_careers) > 0:
+    st.subheader("Career Pivot Flowchart")
+    career_pivot_flowchart(selected_careers)
 
-st.write("This visualization helps you understand the weight distribution of key decision factors in your career choices.")
+# Pairwise Comparison Matrix with Adjusted Weights
+def pairwise_comparison(earnings, factor_weights):
+    careers = list(earnings.keys())
+    matrix = pd.DataFrame(index=careers, columns=careers)
+    for i in range(len(careers)):
+        for j in range(len(careers)):
+            if i == j:
+                matrix.iloc[i, j] = "-"
+            else:
+                weight_factor = sum(factor_weights.values()) / len(factor_weights)
+                matrix.iloc[i, j] = f"{(earnings[careers[i]] / max(1, earnings[careers[j]])) * weight_factor:.2f}x"
+    return matrix
+
+if len(selected_careers) > 1:
+    st.subheader("Pairwise Career Comparison")
+    earnings = {career: np.random.randint(50000, 200000) for career in selected_careers}
+    comparison_matrix = pairwise_comparison(earnings, factor_weights)
+    st.dataframe(comparison_matrix)
+
+# Career Next Steps Checklist
+def career_next_steps(selected_careers):
+    steps = {
+        "Finance Executive": ["Expand financial expertise", "Network with industry leaders"],
+        "Manufacturing Entrepreneur": ["Optimize production", "Seek investment opportunities"],
+        "Consulting": ["Develop thought leadership", "Gain certifications"],
+        "Board Membership": ["Engage in nonprofit work", "Build executive presence"],
+        "Lecturing": ["Develop course materials", "Engage in academic research"]
+    }
+    
+    for career in selected_careers:
+        st.subheader(f"Next Steps for {career}")
+        for step in steps.get(career, []):
+            st.write(f"- {step}")
+
+if len(selected_careers) > 0:
+    st.subheader("Career Next Steps")
+    career_next_steps(selected_careers)
+
